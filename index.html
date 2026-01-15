@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мой Трекер Расходов</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #bb86fc;
+        }
+
+        /* Карточки с итогами */
+        .summary-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: #1e1e1e;
+            border-radius: 12px;
+            padding: 15px;
+            flex: 1;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #a0a0a0;
+        }
+
+        .card .amount {
+            font-size: 24px;
+            font-weight: bold;
+            color: #03dac6;
+        }
+
+        /* Поле ввода */
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 20px;
+            border-radius: 10px;
+            border: 2px solid #333;
+            background-color: #2c2c2c;
+            color: white;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #bb86fc;
+        }
+
+        /* Кнопки категорий */
+        .categories {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button.category-btn {
+            padding: 15px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            background-color: #3700b3;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        button.category-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* История */
+        .history {
+            background-color: #1e1e1e;
+            border-radius: 12px;
+            padding: 10px;
+            min-height: 200px;
+        }
+
+        .history h3 {
+            margin-top: 0;
+            padding-left: 10px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        li:last-child {
+            border-bottom: none;
+        }
+
+        .del-btn {
+            background-color: #cf6679;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        /* Кнопка сброса */
+        .reset-section {
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .reset-btn {
+            background: transparent;
+            border: 1px solid #cf6679;
+            color: #cf6679;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Мои Финансы</h1>
+
+    <!-- ИТОГИ -->
+    <div class="summary-box">
+        <div class="card">
+            <h3>За СЕГОДНЯ</h3>
+            <div class="amount" id="totalToday">0 ₽</div>
+        </div>
+        <div class="card">
+            <h3>За МЕСЯЦ</h3>
+            <div class="amount" id="totalMonth">0 ₽</div>
+        </div>
+    </div>
+
+    <!-- ВВОД -->
+    <div class="input-group">
+        <input type="number" id="amountInput" placeholder="Введите сумму (₽)">
+    </div>
+
+    <!-- КАТЕГОРИИ -->
+    <div class="categories">
+        <button class="category-btn" onclick="addExpense('Еда')">🍔 Еда</button>
+        <button class="category-btn" onclick="addExpense('Авто')">🚗 Авто</button>
+        <button class="category-btn" onclick="addExpense('Дом')">🏠 Дом</button>
+        <button class="category-btn" onclick="addExpense('Разное')">🎉 Разное</button>
+    </div>
+
+    <!-- ИСТОРИЯ -->
+    <div class="history">
+        <h3>История операций</h3>
+        <ul id="historyList">
+            <!-- Сюда будут падать записи -->
+        </ul>
+    </div>
+
+    <div class="reset-section">
+        <button class="reset-btn" onclick="clearAll()">⚠️ Сбросить все данные</button>
+    </div>
+</div>
+
+<script>
+    // Загружаем данные из памяти браузера или создаем пустой список
+    let transactions = JSON.parse(localStorage.getItem('myExpenses')) || [];
+
+    // Функция обновления экрана
+    function updateUI() {
+        const list = document.getElementById('historyList');
+        const totalTodayEl = document.getElementById('totalToday');
+        const totalMonthEl = document.getElementById('totalMonth');
+        
+        list.innerHTML = '';
+        
+        let sumToday = 0;
+        let sumMonth = 0;
+        
+        const now = new Date();
+        const todayStr = now.toLocaleDateString(); // "15.02.2025"
+        const currentMonth = now.getMonth(); // 0-11
+
+        // Сортируем: новые сверху
+        transactions.slice().reverse().forEach(t => {
+            const item = document.createElement('li');
+            
+            // Форматируем дату для проверки
+            const tDate = new Date(t.date);
+            
+            // Считаем сумму за СЕГОДНЯ
+            if (tDate.toLocaleDateString() === todayStr) {
+                sumToday += t.amount;
+            }
+            
+            // Считаем сумму за ЭТОТ МЕСЯЦ
+            if (tDate.getMonth() === currentMonth && tDate.getFullYear() === now.getFullYear()) {
+                sumMonth += t.amount;
+            }
+
+            // Красивая дата для списка
+            const displayTime = tDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const displayDate = tDate.toLocaleDateString();
+
+            item.innerHTML = `
+                <div>
+                    <strong>${t.category}</strong> <br>
+                    <span style="font-size: 12px; color: #888">${displayDate} в ${displayTime}</span>
+                </div>
+                <div style="display:flex; align-items:center;">
+                    <span style="color: #03dac6; font-weight:bold; margin-right:10px;">${t.amount} ₽</span>
+                    <button class="del-btn" onclick="deleteItem(${t.id})">X</button>
+                </div>
+            `;
+            list.appendChild(item);
+        });
+
+        totalTodayEl.innerText = sumToday + ' ₽';
+        totalMonthEl.innerText = sumMonth + ' ₽';
+
+        // Сохраняем в память
+        localStorage.setItem('myExpenses', JSON.stringify(transactions));
+    }
+
+    // Функция добавления расхода
+    function addExpense(category) {
+        const input = document.getElementById('amountInput');
+        const amount = parseFloat(input.value);
+
+        if (!amount || amount <= 0) {
+            alert("Введите сумму!");
+            return;
+        }
+
+        const transaction = {
+            id: Date.now(),
+            amount: amount,
+            category: category,
+            date: new Date()
+        };
+
+        transactions.push(transaction);
+        input.value = ''; // Очистить поле
+        updateUI();
+    }
+
+    // Функция удаления одной записи
+    function deleteItem(id) {
+        if(confirm('Удалить эту запись?')) {
+            transactions = transactions.filter(t => t.id !== id);
+            updateUI();
+        }
+    }
+
+    // Функция полного сброса
+    function clearAll() {
+        if(confirm('Вы уверены? Это удалит ВСЮ историю расходов!')) {
+            transactions = [];
+            updateUI();
+        }
+    }
+
+    // Запуск при открытии
+    updateUI();
+</script>
+
+</body>
+</html>
